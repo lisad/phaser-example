@@ -1,4 +1,4 @@
-from phaser import Pipeline, Phase, Column, DateColumn, IntColumn, row_step
+from phaser import Pipeline, Phase, Column, DateColumn, IntColumn, batch_step, row_step
 
 @row_step
 def echo_step(row, **kwargs):
@@ -24,6 +24,20 @@ def throw_out_zero_totals(row, context):
     if row["count"] > 0:
         return row
     return None
+
+@batch_step
+def sum_counts(batch, context):
+    new_batch = [batch[0]]
+    # Assume the data is sorted by count_id, since that is what we are
+    # aggregating by.
+    # TODO: Add in a step to sort?
+    for row in batch[1:]:
+        last_row = new_batch[-1]
+        if row["count_id"] == last_row["count_id"]:
+            last_row["count"] += row["count"]
+        else:
+            new_batch.append(row)
+    return new_batch
 
 class BostonPipeline(Pipeline):
     columns = [
@@ -57,8 +71,14 @@ class BostonPipeline(Pipeline):
                   context={
                       "columns": columns,
                       }
-                  )
-                  ]
+                  ),
+            Phase(name="aggregate-counts",
+                  steps=[
+                      sum_counts,
+                      ],
+                  columns=columns,
+                  ),
+            ]
 
     def __init__(self, working_dir=None, source=None):
         super().__init__(working_dir, source, self.__class__.phases)
