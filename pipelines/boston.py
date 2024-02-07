@@ -1,26 +1,27 @@
 from datetime import datetime
-from phaser import Pipeline, Phase, Column, DateColumn, IntColumn, batch_step, row_step
+import phaser
 
-@row_step
+@phaser.row_step
 def echo_step(row, **kwargs):
     print(row)
     return row
 
 def select(fn):
-    @row_step
+    @phaser.row_step
     def _select(row, **kwargs):
         if fn(row) == True:
             return row
-        return None
+        raise phaser.DropRowException("Failed `select` step")
     return _select
 
-@row_step
-def keep_only_declared_columns(row, context):
-    columns = context["columns"]
-    new_row = {c.name: row[c.name] for c in columns}
-    return new_row
+def keep_only_declared_columns(columns):
+    @phaser.row_step
+    def _keep_only_declared_columns(row, **kwargs):
+        new_row = {c.name: row[c.name] for c in columns}
+        return new_row
+    return _keep_only_declared_columns
 
-@batch_step
+@phaser.batch_step
 def sum_counts(batch, context):
     new_batch = [batch[0]]
     # Assume the data is sorted by count_id, since that is what we are
@@ -43,7 +44,7 @@ def add_in_counts(agg_row, row):
             agg_row[column] = (agg_row[column] or 0) + row[column]
 
 
-@batch_step
+@phaser.batch_step
 def pivot_timestamps(batch, context):
     """
     Turns each individual count throughout the day into its own row with
@@ -98,14 +99,14 @@ ts_names = ['CNT_0630', 'CNT_0645', 'CNT_0700', 'CNT_0715', 'CNT_0730', 'CNT_074
             'CNT_1700', 'CNT_1715', 'CNT_1730', 'CNT_1745', 'CNT_1800', 'CNT_1815',
             'CNT_1830', 'CNT_1845', 'CNT_1900', 'CNT_1915', 'CNT_1930', 'CNT_1945',
             'CNT_2000', 'CNT_2015', 'CNT_2030', 'CNT_2045']
-ts_columns = [IntColumn(name) for name in ts_names]
+ts_columns = [phaser.IntColumn(name) for name in ts_names]
 
-class BostonPipeline(Pipeline):
+class BostonPipeline(phaser.Pipeline):
     columns = [
-            Column("location_id", rename=["BP_LOC_ID"]),
-            Column("latitude"),
-            Column("longitude"),
-            Column("count_id"),
+            phaser.Column("location_id", rename=["BP_LOC_ID"]),
+            phaser.Column("latitude"),
+            phaser.Column("longitude"),
+            phaser.Column("count_id"),
             # Count type values:
             # - A: All (or unspecified)
             # - B: Bicycle
@@ -115,29 +116,26 @@ class BostonPipeline(Pipeline):
             # - P: Pedestrian
             # - S: Skater, Rollerblader
             # - W: Wheelchair
-            Column("COUNT_TYPE", allowed_values=["A","B","C","J","O","P","S","W"]),
-            DateColumn("count_date"),
-            Column("municipality"),
-            Column("description", rename=["CNT_LOC_DESCRIPTION"]),
+            phaser.Column("COUNT_TYPE", allowed_values=["A","B","C","J","O","P","S","W"]),
+            phaser.DateColumn("count_date"),
+            phaser.Column("municipality"),
+            phaser.Column("description", rename=["CNT_LOC_DESCRIPTION"]),
             ] + ts_columns
     phases = [
-            Phase(name="select-bike-counts",
+            phaser.Phase(name="select-bike-counts",
                   steps=[
                       select(lambda x: x["COUNT_TYPE"] == "B"),
-                      keep_only_declared_columns,
+                      keep_only_declared_columns(columns),
                       ],
                   columns=columns,
-                  context={
-                      "columns": columns,
-                      }
                   ),
-            Phase(name="aggregate-counts",
+            phaser.Phase(name="aggregate-counts",
                   steps=[
                       sum_counts,
                       ],
                   columns=columns,
                   ),
-            Phase(name="pivot-timestamps",
+            phaser.Phase(name="pivot-timestamps",
                   steps=[
                       pivot_timestamps,
                       ],
@@ -145,9 +143,6 @@ class BostonPipeline(Pipeline):
                   ),
             ]
 
-    def __init__(self, working_dir=None, source=None):
-        super().__init__(working_dir, source, self.__class__.phases)
-
-
-p = BostonPipeline("/tmp/phaser-example", "sources/boston/bike_ped_counts.csv")
-p.run()
+if __name__ == "__main__":
+    p = BostonPipeline("/tmp/phaser-example", "sources/boston/bike_ped_counts.csv")
+    p.run()
