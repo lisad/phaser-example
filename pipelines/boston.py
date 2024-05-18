@@ -1,25 +1,15 @@
 from datetime import datetime
 import phaser
 
-@phaser.row_step
-def echo_step(row, **kwargs):
-    print(row)
-    return row
-
-def select(fn):
-    @phaser.row_step
-    def _select(row, **kwargs):
-        if fn(row) == True:
-            return row
-        raise phaser.DropRowException("Failed `select` step")
-    return _select
 
 def keep_only_declared_columns(columns):
     @phaser.row_step
     def _keep_only_declared_columns(row, **kwargs):
         new_row = {c.name: row[c.name] for c in columns}
         return new_row
+
     return _keep_only_declared_columns
+
 
 @phaser.batch_step
 def sum_counts(batch, context):
@@ -34,6 +24,7 @@ def sum_counts(batch, context):
         else:
             new_batch.append(row)
     return new_batch
+
 
 def add_in_counts(agg_row, row):
     """Add the counts from `row` into the same columns in the `agg_row`"""
@@ -62,20 +53,22 @@ def pivot_timestamps(batch, context):
                 new_batch.append(new_row)
     return new_batch
 
+
 def copy_common_columns(row):
     """
-    Makes a copy of the data from row for all of the columns that are to be kept
+    Makes a copy of the data from row for all the columns that are to be kept
     for each new row that we make when pivoting to a timestamped set of data.
     """
     columns = [
-            "location_id",
-            "latitude",
-            "longitude",
-            "count_id",
-            "municipality",
-            "description",
-            ]
-    return { column: row[column] for column in columns }
+        "location_id",
+        "latitude",
+        "longitude",
+        "count_id",
+        "municipality",
+        "description",
+    ]
+    return {column: row[column] for column in columns}
+
 
 def make_ts(date, column):
     """
@@ -89,6 +82,7 @@ def make_ts(date, column):
     minute = int(time[2:])
     return datetime(date.year, date.month, date.day, hour, minute)
 
+
 ts_names = ['CNT_0630', 'CNT_0645', 'CNT_0700', 'CNT_0715', 'CNT_0730', 'CNT_0745',
             'CNT_0800', 'CNT_0815', 'CNT_0830', 'CNT_0845', 'CNT_0900', 'CNT_0915',
             'CNT_0930', 'CNT_0945', 'CNT_1000', 'CNT_1015', 'CNT_1030', 'CNT_1045',
@@ -101,48 +95,41 @@ ts_names = ['CNT_0630', 'CNT_0645', 'CNT_0700', 'CNT_0715', 'CNT_0730', 'CNT_074
             'CNT_2000', 'CNT_2015', 'CNT_2030', 'CNT_2045']
 ts_columns = [phaser.IntColumn(name) for name in ts_names]
 
+
 class BostonPipeline(phaser.Pipeline):
     columns = [
-            phaser.Column("location_id", rename=["BP_LOC_ID"]),
-            phaser.Column("latitude"),
-            phaser.Column("longitude"),
-            phaser.Column("count_id"),
-            # Count type values:
-            # - A: All (or unspecified)
-            # - B: Bicycle
-            # - C: Baby carriage
-            # - J: Jogger
-            # - O: Other
-            # - P: Pedestrian
-            # - S: Skater, Rollerblader
-            # - W: Wheelchair
-            phaser.Column("COUNT_TYPE", allowed_values=["A","B","C","J","O","P","S","W"]),
-            phaser.DateColumn("count_date"),
-            phaser.Column("municipality"),
-            phaser.Column("description", rename=["CNT_LOC_DESCRIPTION"]),
-            ] + ts_columns
+                  phaser.Column("location_id", rename=["BP_LOC_ID"]),
+                  phaser.Column("latitude"),
+                  phaser.Column("longitude"),
+                  phaser.Column("count_id"),
+                  # Count type values:
+                  # - A: All (or unspecified)
+                  # - B: Bicycle
+                  # - C: Baby carriage
+                  # - J: Jogger
+                  # - O: Other
+                  # - P: Pedestrian
+                  # - S: Skater, Rollerblader
+                  # - W: Wheelchair
+                  phaser.Column("COUNT_TYPE",
+                                allowed_values=["A", "B", "C", "J", "O", "P", "S", "W"],
+                                on_error=phaser.ON_ERROR_DROP_ROW),
+                  phaser.DateColumn("count_date"),
+                  phaser.Column("municipality"),
+                  phaser.Column("description", rename=["CNT_LOC_DESCRIPTION"]),
+              ] + ts_columns
     phases = [
-            phaser.Phase(name="select-bike-counts",
-                  steps=[
-                      select(lambda x: x["COUNT_TYPE"] == "B"),
-                      keep_only_declared_columns(columns),
-                      ],
-                  columns=columns,
-                  ),
-            phaser.Phase(name="aggregate-counts",
-                  steps=[
-                      sum_counts,
-                      ],
-                  columns=columns,
-                  ),
-            phaser.Phase(name="pivot-timestamps",
-                  steps=[
-                      pivot_timestamps,
-                      ],
-                  columns=columns,
-                  ),
-            ]
-
-if __name__ == "__main__":
-    p = BostonPipeline("/tmp/phaser-example", "sources/boston/bike_ped_counts.csv")
-    p.run()
+        phaser.Phase(name="select-bike-counts",
+                     steps=[
+                         phaser.filter_rows(lambda row: row['COUNT_TYPE'] == 'B'),
+                         keep_only_declared_columns(columns),
+                     ],
+                     columns=columns,
+                     ),
+        phaser.Phase(name="aggregate-counts",
+                     steps=[sum_counts],
+                     columns=columns),
+        phaser.Phase(name="pivot-timestamps",
+                     steps=[pivot_timestamps],
+                     columns=columns),
+    ]
