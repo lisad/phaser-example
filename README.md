@@ -75,14 +75,26 @@ this results in dropping some rows with invalid values.
 
 In the __select-bike-counts__ phase which works first to eliminate all the data we don't want to work with (a good 
 practice to avoid having to add code to work with data you don't even want), only rows with bike counts and
-only columns we want are kept.
+only columns we want are kept.  This is done with the __phaser__ builtin __filter_rows__ function and a custom
+function to drop all columns not declared.
 
 The __aggregate-counts__ phase adds the counts together for all the incoming and outgoing locations as those 
-are all broken into separate rows with the same COUNT_ID. 
+are all broken into separate rows with the same COUNT_ID in the source data.
 
 Finally, the __pivot-timestamps__ phase does a wide-to-long pivot, so that each count gets its own row and timestamp, 
 now ready for graphing or analysis.  TODO: the pivot-timestamps phae needs to tell the phaser library not to 
 keep row numbers or warn about extra rows created, because it's doing a pivot.
+
+The declaration of the pipeline, columns and steps is only ~35 lines, because many of the operations are performed
+by the __phaser__ library (the rest of the lines in boston.py is mostly the pivot function).  The __phaser__ library
+takes care of:
+
+* Making sure the int columns like CNT_0630 are all treated as integers
+* Parsing the date column
+* Dropping empty rows rather than have null values
+* Input and output
+* Collecting a summary of what was done in an 'errors_and_warnings.txt' file - e.g. how many rows dropped with
+  COUNT_TYPE other than 'B'
 
 After running the pipeline, the output of each phase can be seen in a checkpoint to make sure each phase separately is 
 doing its job.

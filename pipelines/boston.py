@@ -66,6 +66,7 @@ def copy_common_columns(row):
         "count_id",
         "municipality",
         "description",
+        "temperature"
     ]
     return {column: row[column] for column in columns}
 
@@ -117,6 +118,7 @@ class BostonPipeline(phaser.Pipeline):
                   phaser.DateColumn("count_date"),
                   phaser.Column("municipality"),
                   phaser.Column("description", rename=["CNT_LOC_DESCRIPTION"]),
+                  phaser.IntColumn("temperature")
               ] + ts_columns
     phases = [
         phaser.Phase(name="select-bike-counts",
