@@ -20,13 +20,30 @@ If phaser is locally cloned from the library repository, install it with `pip in
 appropriate relative directory path)
 
 Download the __'bike_ped_counts.csv'__ data from the city of Boston and put it in the _sources_ directory.
+Download any of the location data files from the city of Seattle and put it in the _sources_ directory.
 
 To run the pipeline:
 ```    
 > python3 -m phaser run boston output  sources/bike_ped_counts.csv
+> python3 -m phaser run seattle output "sources/Thomas St Overpass Bike Ped Counter 20240526.csv"
 ```
 
-## Incoming Data
+## Desired output of transformation
+
+The output should have one row per count value per timestamp, with these column values all filled in:
+
+* location_id: location ID of bike/ped counter sensor provided by city
+* latitude, longitude
+* count_id: ID provided by city for the day's count values?
+* description: descriptive name of the location of the counter
+* municipality: civil municipality where the counter resides
+* count: number of bikes counted and registered at this time
+* counted_at: timestamp of the count value
+
+Still to add:
+* Timezone
+
+## Overview of Boston pipeline
 
 The boston bike and pedestrian count data looks like this: 
 
@@ -52,22 +69,11 @@ Before this, however, we must deal with multiple count rows for the same locatio
 location, and direction leaving the location (e.g. northbound on Harvard St going to westbound on Beacon st).
 For our analysis, we add these all up for total traffic at that location in that time period.
 
-## Desired output of transformation
+### Why the pipeline was organized in 3 phases
 
-The output should have one row per count value per timestamp, with these column values all filled in:
-
-* location_id: location ID of bike/ped counter sensor provided by city
-* latitude, longitude
-* count_id: ID provided by city for the day's count values? 
-* description: descriptive name of the location of the counter
-* municipality: civil municipality where the counter resides
-* count: number of bikes counted and registered at this time
-* counted_at: timestamp of the count value 
-
-Still to add:
-* Timezone
-
-## Overview of Boston pipeline
+Since phaser calculates and keeps row numbers, any phase that reshapes the data significantly by splitting out
+rows or pivoting makes those row numbers invalid. In the boston data pipeline, there are two phases that really
+change the shape of the data - the 2nd and 3rd phases.  The first phase will be a cleanup phase.
 
 Columns are declared once for the whole pipeline, because several phases need to apply the same column value parsing
 (e.g. parsing counts as ints, and dates as dates.) THe first time the column definitions are used in the first phase,
@@ -75,8 +81,8 @@ this results in dropping some rows with invalid values.
 
 In the __select-bike-counts__ phase which works first to eliminate all the data we don't want to work with (a good 
 practice to avoid having to add code to work with data you don't even want), only rows with bike counts and
-only columns we want are kept.  This is done with the __phaser__ builtin __filter_rows__ function and a custom
-function to drop all columns not declared.
+only columns we want are kept.  This is done with the __phaser__ builtin __filter_rows__ function to choose only bike
+count rows, and a custom function to drop all columns not declared.
 
 The __aggregate-counts__ phase adds the counts together for all the incoming and outgoing locations as those 
 are all broken into separate rows with the same COUNT_ID in the source data.
@@ -99,3 +105,10 @@ takes care of:
 After running the pipeline, the output of each phase can be seen in a checkpoint to make sure each phase separately is 
 doing its job.
 
+## Overview of Seattle pipeline
+
+Provenance: e.g.  https://data.seattle.gov/Transportation/Thomas-St-Overpass-Bike-Ped-Counter/t8i6-tipf/about_data (and
+other pages for other sensor locations)
+
+Seattle organizes its sensor data very differently.  Rather than having one file for many locations, there's one file
+per location, and the location name is in the filename as well as in the column names.
