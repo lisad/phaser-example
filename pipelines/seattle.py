@@ -31,6 +31,7 @@ def add_location_values_to_rows(df, context):
 
 @phaser.row_step
 def sum_cyclist_values(row, context):
+    bike_counts = [value for key, value in row.items() if "Cyclist" in key or "Bike" in key]
     cyclist_sum = sum( int(value) for key, value in row.items() if "Cyclist" in key and value != '')
     row['count'] = cyclist_sum
     return row
@@ -43,7 +44,7 @@ def keep_only_declared_columns(row, **kwargs):
 
 class SeattlePipeline(phaser.Pipeline):
     phases = [
-        phaser.Phase(columns=[phaser.DateTimeColumn('counted_at', rename='Time')],
+        phaser.Phase(columns=[phaser.DateTimeColumn('counted_at', rename=['Date', 'Time'])],
                      steps=[get_location_name,
                             add_location_values_to_rows,
                             sum_cyclist_values,
