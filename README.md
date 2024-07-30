@@ -108,7 +108,10 @@ doing its job.
 ## Overview of Seattle pipeline
 
 Provenance: e.g.  https://data.seattle.gov/Transportation/Thomas-St-Overpass-Bike-Ped-Counter/t8i6-tipf/about_data (and
-other pages for other sensor locations)
+other pages for other sensor locations - the Burke Gilman Trail NE 70th data has also been tested)
 
 Seattle organizes its sensor data very differently.  Rather than having one file for many locations, there's one file
-per location, and the location name is in the filename as well as in the column names.
+per location, and the location name is in the filename as well as in the column names.  Column names are different
+across different files.  Also, the counts are separated by direction, so there must be a step to sum directions
+together to get a comparable value to the Boston data.  TODO: add lat/long based on location, and add temperature
+based on lat/long and day.
