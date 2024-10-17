@@ -31,8 +31,7 @@ def add_location_values_to_rows(df, context):
 
 @phaser.row_step
 def sum_cyclist_values(row, context):
-    bike_counts = [value for key, value in row.items() if "Cyclist" in key or "Bike" in key]
-    cyclist_sum = sum( int(value) for key, value in row.items() if "Cyclist" in key and value != '')
+    cyclist_sum = sum( int(value) for key, value in row.items() if "Cyclist" in key or "Bike" in key and value != '')
     row['count'] = cyclist_sum
     return row
 

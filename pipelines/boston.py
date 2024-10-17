@@ -118,8 +118,10 @@ class BostonPipeline(phaser.Pipeline):
                      ),
         phaser.Phase(name="aggregate-counts",
                      steps=[phaser.sort_by('count_id'), sum_counts],
-                     columns=COLUMNS),
+                     columns=COLUMNS,
+                     renumber=True),
         phaser.Phase(name="pivot-timestamps",
                      steps=[pivot_timestamps],
-                     columns=COLUMNS),
+                     columns=COLUMNS,
+                     renumber=True),
     ]
