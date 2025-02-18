@@ -9,6 +9,7 @@ be able to define a IntColumn
 the location_name from df.columns[1] in a dataframe step, but it was not in source file order
 * Should there be a column header type step - a step that just gets the column header names and returns a new set?
 see how awkward it is to get the 2nd column name in a batch step
+* Since we have one pipeline for both locations, the output should be named something different using Context?
 """
 
 
@@ -40,14 +41,13 @@ def sum_cyclist_values(row, context):
 def keep_only_declared_columns(row, **kwargs):
     return {name: row[name] for name in ['counted_at', 'municipality', 'description', 'count']}
 
+class SeattlePhase(phaser.Phase):
+    columns = phaser.DateTimeColumn('counted_at', datetime_format="%m/%d/%Y %H:%M:%S %p", rename=['Date', 'Time'])
+    steps = [get_location_name,
+             add_location_values_to_rows,
+             sum_cyclist_values,
+             keep_only_declared_columns
+             ]
 
 class SeattlePipeline(phaser.Pipeline):
-    phases = [
-        phaser.Phase(columns=[phaser.DateTimeColumn('counted_at', rename=['Date', 'Time'])],
-                     steps=[get_location_name,
-                            add_location_values_to_rows,
-                            sum_cyclist_values,
-                            keep_only_declared_columns
-                    ]
-        )
-    ]
+    phases = [SeattlePhase]

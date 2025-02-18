@@ -165,6 +165,3 @@ cython_debug/
 # THIS PROJECT: to create a persistent directory for output while testing the pipeline,
 # call it 'output' and it will be ignored by git.
 output/
-# Also to add the bike count source data to a convenient directory that won't be checked in,
-# use 'sources'
-sources/

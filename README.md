@@ -1,6 +1,6 @@
 # phaser-example
 
-This is a working example of project that uses the phaser library to collect, merge and transform data.
+This repository has working examples of projects that use the phaser library to collect, merge and transform data.
 
 ## To try yourself
 
@@ -12,23 +12,24 @@ Set up (using Python 3):
 > source venv/bin/activate
 > pip install -r requirements.txt
 > pip install phaser
-> mkdir output sources
 
 ```    
 
-If phaser is locally cloned from the library repository, install it with `pip install -e ../phaser` (or use the 
+If phaser is locally cloned from the phaser repository, install it with `pip install -e ../phaser` (or use the 
 appropriate relative directory path)
 
-Download the __'bike_ped_counts.csv'__ data from the city of Boston and put it in the _sources_ directory.
-Download any of the location data files from the city of Seattle and put it in the _sources_ directory.
-
-To run the pipeline:
+To run the bike count pipelines:
 ```    
-> python3 -m phaser run boston output  sources/bike_ped_counts.csv
-> python3 -m phaser run seattle output "sources/Thomas St Overpass Bike Ped Counter 20240526.csv"
+> cd bikecounts
+> mkdir output
+> python3 -m phaser run boston output  sources/boston_bike_ped_counts.csv
+> python3 -m phaser run seattle output "sources/Seattle Burke Gilman Trail NE 70th 2024.csv"
+> python3 -m phaser run seattle output "sources/Seattle Thomas St Overpass 2024.csv"
 ```
 
-## Desired output of transformation
+TODO - instructions for the continuous glucose monitoring data
+
+## Desired output for bike data 
 
 The output should have one row per count value per timestamp, with these column values all filled in:
 
