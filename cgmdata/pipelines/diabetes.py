@@ -3,6 +3,12 @@ import phaser
 import pandas
 from datetime import datetime
 
+
+def keep_basal_and_fmr(row):
+    return (row['type'] == 'basal'
+            or row.get('payload__type') == ['Five Minute Reading (FMR)'])
+
+
 class ExtractPhase(phaser.Phase):
     columns = [
         # Columns to drop
@@ -27,13 +33,8 @@ class ExtractPhase(phaser.Phase):
     steps = [
         phaser.filter_rows(lambda row: row['type'] in ['cbg', 'basal']),
         phaser.flatten_column('payload'),
-        phaser.filter_rows(lambda row: keep_basal_and_fmr(row))
+        phaser.filter_rows(keep_basal_and_fmr)
     ]
-
-
-def keep_basal_and_fmr(row):
-    return (row['type'] == 'basal'
-            or row.get('payload__type') == ['Five Minute Reading (FMR)'])
 
 
 @phaser.row_step
