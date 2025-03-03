@@ -3,6 +3,12 @@ import phaser
 import pandas
 from datetime import datetime
 
+
+def keep_basal_and_fmr(row):
+    return (row['type'] == 'basal'
+            or row.get('payload__type') == ['Five Minute Reading (FMR)'])
+
+
 class ExtractPhase(phaser.Phase):
     columns = [
         # Columns to drop
@@ -25,10 +31,11 @@ class ExtractPhase(phaser.Phase):
     ]
 
     steps = [
-        phaser.filter_rows(lambda row: row['type'] == 'cbg'),
+        phaser.filter_rows(lambda row: row['type'] in ['cbg', 'basal']),
         phaser.flatten_column('payload'),
-        phaser.filter_rows(lambda row: row['payload__type'] == ['Five Minute Reading (FMR)'])
+        phaser.filter_rows(keep_basal_and_fmr)
     ]
+
 
 @phaser.row_step
 def set_hour_and_date(row, context):
@@ -36,21 +43,25 @@ def set_hour_and_date(row, context):
     row['hour'] = row['time'].hour
     return row
 
-@phaser.dataframe_step
+
+@phaser.dataframe_step(pass_row_nums=False)
 def calculate_hour_avg(df, context):
-    averages = df.groupby(['date', 'hour'], as_index=False)['value'].mean()
+    averages = df.groupby(['date', 'hour'], as_index=False).agg({'cbg_value': 'mean', 'basal_rate': 'mean'})
     return averages
+
 
 class CalculationPhase(phaser.Phase):
     columns = [
         phaser.DateTimeColumn('time', required=True),
-        phaser.FloatColumn('value', required=True)
+        phaser.FloatColumn('basal_rate', rename='rate'),
+        phaser.FloatColumn('cbg_value', rename='value')
     ]
 
     steps = [
         set_hour_and_date,
         calculate_hour_avg
     ]
+
 
 class GlucosePipeline(phaser.Pipeline):
     # save_format = phaser.JSON_RECORD_FORMAT
